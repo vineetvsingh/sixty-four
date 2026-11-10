@@ -1,0 +1,12 @@
+[package]
+name = "sixtyfour-server"
+version = "0.1.0"
+edition = "2021"
+description = "Serves the built site and hosts games between two browsers. No dependencies beyond the engine."
+
+[[bin]]
+name = "serve"
+path = "src/main.rs"
+
+[dependencies]
+engine = { path = "../engine", package = "sixtyfour-engine" }

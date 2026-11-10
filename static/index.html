@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sixty-Four Chess</title>
+<meta name="description" content="Play chess against the computer or a friend, with lessons, openings and puzzles.">
+<meta name="theme-color" content="#1d5bd0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 2'%3E%3Crect width='2' height='2' fill='%23e4eaf0'/%3E%3Crect x='1' width='1' height='1' fill='%237f98b0'/%3E%3Crect y='1' width='1' height='1' fill='%237f98b0'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a board on the left that never moves, a working panel on the right that changes per tab. */
+:root{
+  --bg:#f1f4f7; --surface:#ffffff; --ink:#15202b; --muted:#5a6877; --line:#d4dbe3;
+  --accent:#1d5bd0; --accent-ink:#ffffff; --soft:#e7edf5;
+  --sq-light:#e4eaf0; --sq-dark:#7f98b0;
+  --good:#1f8a4c; --warn:#b97a00; --bad:#c23b32;
+  --display:'Bricolage Grotesque','IBM Plex Sans',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141a; --surface:#171e26; --ink:#e7ecf1; --muted:#95a3b2; --line:#2a3541;
+    --accent:#72a6ff; --accent-ink:#0b1320; --soft:#1f2933;
+    --sq-light:#cfd8e1; --sq-dark:#6f88a0;
+    --good:#4cc27e; --warn:#e2aa3c; --bad:#f0736a;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f141a; --surface:#171e26; --ink:#e7ecf1; --muted:#95a3b2; --line:#2a3541;
+  --accent:#72a6ff; --accent-ink:#0b1320; --soft:#1f2933;
+  --sq-light:#cfd8e1; --sq-dark:#6f88a0;
+  --good:#4cc27e; --warn:#e2aa3c; --bad:#f0736a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body)}
+button,select,input{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0}
+.app{max-width:1160px;margin:0 auto;padding:16px 16px 48px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;padding-bottom:14px;border-bottom:1px solid var(--line);position:relative}
+.settings{position:absolute;right:0;top:calc(100% + 8px);z-index:30;width:min(300px,100%);box-shadow:0 12px 32px rgba(0,0,0,.2)}
+.brand{font-family:var(--display);font-weight:700;font-size:1.45rem;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.brand i{width:22px;height:22px;display:grid;grid-template-columns:1fr 1fr;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.brand i b{background:var(--sq-light)} .brand i b:nth-child(2),.brand i b:nth-child(3){background:var(--sq-dark)}
+nav{display:flex;flex-wrap:wrap;gap:4px}
+nav a{padding:7px 14px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:500}
+nav a:hover{color:var(--ink);background:var(--soft)}
+nav a.on{background:var(--ink);color:var(--bg)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section.view{display:none}
+section.view.on{display:block}
+.stage{display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:28px;align-items:start}
+.stage.three{grid-template-columns:230px minmax(0,500px) minmax(0,1fr)}
+@media (max-width:960px){.stage.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .stage.three .list{grid-column:1/-1}}
+@media (max-width:760px){.stage,.stage.three{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel h2{font-size:1.25rem} .panel h3{font-size:.8rem;font-family:var(--body);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)} .small{font-size:.875rem}
+
+/* board */
+.boardwrap{display:flex;gap:8px;align-items:stretch}
+.evalbar{width:12px;border-radius:6px;overflow:hidden;background:#2b333c;border:1px solid var(--line);display:flex;flex-direction:column;justify-content:flex-end;flex:none}
+.evalbar.flip{justify-content:flex-start}
+.evalbar div{background:#f4f6f8;height:50%;transition:height .35s}
+.board{flex:1;min-width:0;aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);border-radius:6px;overflow:hidden;position:relative;container-type:inline-size;user-select:none;-webkit-user-select:none;touch-action:none;border:1px solid var(--line)}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;cursor:default}
+.sq.lt{background:var(--sq-light)} .sq.dk{background:var(--sq-dark)}
+.sq i{position:absolute;font:500 2.3cqw/1 var(--mono);font-style:normal;color:#23303d;opacity:.7;pointer-events:none}
+.sq i.rk{top:3px;left:3px} .sq i.fl{bottom:2px;right:3px}
+.sq.last::before,.sq.sel::before,.sq.chk::before,.sq.hint::before,.sq.ring::before,.sq.star::before,.sq.pre::before{content:"";position:absolute;inset:0;pointer-events:none}
+.sq.pre::before{background:rgba(126,87,194,.55)}
+.sq.kc{outline:.7cqw solid var(--accent);outline-offset:-.7cqw;z-index:2}
+.marks{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
+.marks line{stroke:rgba(24,128,66,.85);stroke-width:.17;stroke-linecap:round}
+.marks polygon{fill:rgba(24,128,66,.85)}
+.marks circle{fill:none;stroke:rgba(24,128,66,.85);stroke-width:.08}
+.sq.last::before{background:rgba(245,196,58,.45)}
+.sq.sel::before{background:rgba(29,91,208,.42)}
+.sq.hint::before{box-shadow:inset 0 0 0 .7cqw #1f8a4c;background:rgba(31,138,76,.25)}
+.sq.ring::before{box-shadow:inset 0 0 0 .6cqw rgba(29,91,208,.85)}
+.sq.star::before{background:rgba(245,196,58,.6)}
+.sq.chk::before{background:radial-gradient(circle,rgba(220,50,40,.9) 0,rgba(220,50,40,.35) 55%,transparent 75%)}
+.sq.tgt{cursor:pointer}
+.sq.tgt::after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(15,25,35,.32);pointer-events:none}
+.sq.tgt.cap::after{width:88%;height:88%;background:none;border:.8cqw solid rgba(15,25,35,.32)}
+.pc{display:block;width:100%;height:100%;background:center/90% no-repeat;position:relative;z-index:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.28))}
+.pc.slide{z-index:3;animation:slide 380ms cubic-bezier(.33,0,.2,1) both}
+@keyframes slide{from{transform:translate(var(--dx),var(--dy))}to{transform:none}}
+.wK{background-image:url(pieces/wK.svg)}.wQ{background-image:url(pieces/wQ.svg)}.wR{background-image:url(pieces/wR.svg)}.wB{background-image:url(pieces/wB.svg)}.wN{background-image:url(pieces/wN.svg)}.wP{background-image:url(pieces/wP.svg)}
+.bK{background-image:url(pieces/bK.svg)}.bQ{background-image:url(pieces/bQ.svg)}.bR{background-image:url(pieces/bR.svg)}.bB{background-image:url(pieces/bB.svg)}.bN{background-image:url(pieces/bN.svg)}.bP{background-image:url(pieces/bP.svg)}
+.pc.ghost{position:fixed;z-index:50;transform:translate(-50%,-50%) scale(1.08);pointer-events:none;animation:none;filter:drop-shadow(0 6px 6px rgba(0,0,0,.35))}
+.promo{position:absolute;inset:0;background:rgba(10,16,22,.55);display:flex;align-items:center;justify-content:center;gap:2cqw;z-index:5}
+.promo button{width:18cqw;height:18cqw;padding:1.5cqw;border-radius:2cqw;border:0;background:var(--sq-light);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.promo button:hover{background:#fff}
+.side{display:flex;align-items:center;gap:8px;min-height:26px;font-size:.9rem}
+.side b{font-weight:600} .side .cap{display:flex;align-items:center;padding-right:7px}
+.side .cap i{width:20px;height:20px;margin-right:-7px;background:center/contain no-repeat;filter:drop-shadow(0 0 1px rgba(128,140,152,.9))}
+.side .lead{font:500 .8rem var(--mono);color:var(--muted)}
+.side .clock{margin-left:auto;font:500 1.05rem var(--mono);font-variant-numeric:tabular-nums;padding:1px 9px;border-radius:6px;background:var(--soft);border:1px solid var(--line)}
+.side .clock.run{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.side .clock.low{color:var(--bad)}
+.side .clock.run.low{background:var(--bad);border-color:var(--bad);color:#fff}
+/* board colour schemes, chosen in Settings */
+:root[data-board="wood"]{--sq-light:#ecd8b6;--sq-dark:#ae8560}
+:root[data-board="green"]{--sq-light:#e8ecd6;--sq-dark:#6e9460}
+:root[data-board="slate"]{--sq-light:#dfe2e6;--sq-dark:#8a919b}
+.dot{width:10px;height:10px;border-radius:50%;border:1px solid var(--muted);flex:none}
+.dot.w{background:#fff}.dot.b{background:#18212b}
+
+/* controls */
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.field{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);flex:1;min-width:110px}
+select,input[type=text]{padding:7px 8px;border-radius:7px;border:1px solid var(--line);background:var(--surface);font-size:.95rem;color:var(--ink)}
+input[type=text]::placeholder{color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select:disabled,input:disabled{opacity:.55}
+#san-msg:empty,#link-msg:empty,#online-msg:empty,#time-note:empty{display:none}
+.btn{padding:7px 13px;border-radius:7px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:500;font-size:.93rem}
+.btn:hover{background:var(--soft)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.08);background:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.status{font-family:var(--display);font-weight:700;font-size:1.2rem}
+.verdict{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;background:var(--soft);font-size:.93rem;min-height:44px}
+.chip{flex:none;font:600 .72rem var(--body);letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:999px;color:#fff;background:var(--muted);margin-top:1px}
+.chip.best,.chip.good,.chip.ok{background:var(--good)} .chip.inacc{background:var(--warn)} .chip.mistake,.chip.blunder,.chip.no{background:var(--bad)}
+.moves{font:400 .9rem/1.9 var(--mono);max-height:220px;overflow-y:auto;display:grid;grid-template-columns:2.6em 1fr 1fr;column-gap:6px;font-variant-numeric:tabular-nums}
+.moves span.n{color:var(--muted)} .moves span.cur{background:var(--soft);border-radius:4px;font-weight:500}
+.moves span{padding:0 4px} .moves span.ply{cursor:pointer;border-radius:4px} .moves span.ply:hover{background:var(--soft)}
+.moves{position:relative}
+.nag{font-style:normal;font-weight:600;margin-left:1px} .nag.inacc{color:var(--warn)} .nag.mistake,.nag.blunder{color:var(--bad)}
+.confirm{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;border:1px solid var(--accent);font-size:.93rem;font-weight:500}
+.confirm[hidden],.summary[hidden]{display:none}
+.summary{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:8px;background:var(--soft);font-size:.93rem}
+.summary table{align-self:flex-start;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.875rem}
+.summary th,.summary td{padding:2px 12px 2px 0;text-align:right;font-weight:500} .summary th:first-child{text-align:left} .summary tr:first-child th{color:var(--muted);font-weight:500}
+textarea{font:400 .82rem/1.5 var(--mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:8px;width:100%;resize:vertical;min-height:84px}
+label.check{display:flex;gap:7px;align-items:center;font-size:.92rem;cursor:pointer}
+
+/* lists */
+.list{display:flex;flex-direction:column;gap:14px}
+.list .grp{display:flex;flex-direction:column;gap:2px}
+.list h3{font:600 .75rem var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.item{display:flex;gap:8px;align-items:center;text-align:left;padding:6px 9px;border-radius:7px;border:0;background:none;cursor:pointer;font-size:.93rem;width:100%}
+.item:hover{background:var(--soft)} .item.on{background:var(--ink);color:var(--bg)}
+.tick{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--muted);flex:none;position:relative}
+.tick.done{background:var(--good);border-color:var(--good)}
+.tick.done::after{content:"";position:absolute;left:3.5px;top:1px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+@media (max-width:960px){.list{flex-direction:row;flex-wrap:wrap;gap:10px 22px;max-height:210px;overflow-y:auto;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px}}
+.prose{display:flex;flex-direction:column;gap:10px;max-width:62ch}
+.prose ul{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:4px}
+.prose code,.san{font-family:var(--mono);font-size:.92em;background:var(--soft);padding:1px 5px;border-radius:4px}
+table.vals{border-collapse:collapse;font-variant-numeric:tabular-nums}
+table.vals td{padding:3px 14px 3px 0;border-bottom:1px solid var(--line)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.pz{padding:8px 6px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;font-size:.8rem;color:var(--muted)}
+.pz b{font:700 1rem var(--display);color:var(--ink)} .pz.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pz.done b::after{content:" ✓";color:var(--good)}
+.meter{height:6px;border-radius:3px;background:var(--soft);overflow:hidden}.meter div{height:100%;background:var(--good);width:0;transition:width .3s}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.pc.slide{animation:none}}
+</style>
+<!-- Filled in by Settings when a piece set other than the default is chosen. -->
+<style id="piece-css"></style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><i><b></b><b></b><b></b><b></b></i>Sixty-Four</div>
+    <nav id="nav">
+      <a href="#play">Play</a><a href="#learn">Learn</a><a href="#openings">Openings</a><a href="#puzzles">Puzzles</a>
+    </nav>
+    <div class="row" style="margin-left:auto">
+      <button class="btn" id="btn-settings" aria-expanded="false" aria-controls="settings">Settings</button>
+      <button class="btn" id="btn-sound" aria-pressed="true" title="Turn move sounds on or off">Sound on</button>
+    </div>
+    <div class="panel settings" id="settings" hidden>
+      <h3>Settings</h3>
+      <label class="field">Board colours<select id="set-board"><option value="0">Blue</option><option value="1">Wood</option><option value="2">Green</option><option value="3">Slate</option></select></label>
+      <label class="field">Pieces<select id="set-pieces"><option value="0">Classic</option><option value="1">Merida</option><option value="2">Chessnut</option></select></label>
+      <label class="field">Piece movement<select id="set-speed"><option value="0">Slow</option><option value="1">Normal</option><option value="2">Fast</option><option value="3">Instant</option></select></label>
+      <label class="field">Volume<input type="range" id="set-volume" min="0" max="100" step="5" value="100"></label>
+    </div>
+  </header>
+  <div class="sr" id="sr-live" aria-live="polite"></div>
+
+  <!-- PLAY -->
+  <section class="view" id="view-play">
+    <div class="stage">
+      <div class="col">
+        <div class="side" id="play-top"></div>
+        <div class="boardwrap"><div class="evalbar" id="evalbar" title="Engine evaluation"><div></div></div><div id="play-board"></div></div>
+        <div class="side" id="play-bot"></div>
+        <div class="row">
+          <label class="sr" for="play-san">Type a move</label>
+          <input type="text" id="play-san" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Or type a move: Nf3, exd5, O-O, e2e4" style="flex:1;min-width:0">
+          <button class="btn" id="btn-san">Play</button>
+          <span class="small muted" id="san-msg" role="status" style="flex-basis:100%"></span>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="status" id="play-status" role="status">White to move</div>
+          <div class="verdict" id="play-verdict"><span class="chip">Coach</span><span>Make a move. The coach rates each one and shows what the engine preferred.</span></div>
+          <div class="row">
+            <button class="btn pri" id="btn-new">New game</button>
+            <button class="btn" id="btn-undo">Undo</button>
+            <button class="btn" id="btn-hint">Hint</button>
+            <button class="btn" id="btn-flip">Flip board</button>
+            <button class="btn" id="btn-draw">Offer draw</button>
+            <button class="btn" id="btn-resign">Resign</button>
+          </div>
+          <div class="confirm" id="play-confirm" role="alertdialog" aria-labelledby="confirm-text" hidden>
+            <span id="confirm-text"></span>
+            <span class="row"><button class="btn pri" id="confirm-yes">Yes</button><button class="btn" id="confirm-no">Keep playing</button></span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Game setup</h3>
+          <div class="row">
+            <label class="field">Opponent<select id="sel-mode"><option value="cpu">Computer</option><option value="human">Two players, one screen</option></select></label>
+            <label class="field">Level<select id="sel-level"><option value="0">1 · Beginner</option><option value="1">2 · Casual</option><option value="2" selected>3 · Club</option><option value="3">4 · Strong</option><option value="4">5 · Toughest</option></select></label>
+            <label class="field">You play<select id="sel-color"><option value="0">White</option><option value="1">Black</option></select></label>
+            <label class="field">Clock<select id="sel-time"><option value="0">No clock</option><option value="1">1 minute</option><option value="2">3 min + 2 s a move</option><option value="3">5 minutes</option><option value="4">10 minutes</option><option value="5">15 min + 10 s a move</option><option value="6">30 minutes</option></select></label>
+          </div>
+          <span class="small muted" id="time-note" role="status"></span>
+          <label class="check"><input type="checkbox" id="chk-coach" checked> Coach comments on my moves</label>
+        </div>
+        <div class="panel">
+          <h3>Play a friend online</h3>
+          <div class="col" id="online-idle" style="gap:8px">
+            <p class="small muted">Create a game and send your friend the link. It uses the clock chosen above.</p>
+            <div class="row" style="align-items:flex-end">
+              <label class="field" style="flex:0 1 170px">You play<select id="on-color"><option value="r">Either colour</option><option value="w">White</option><option value="b">Black</option></select></label>
+              <button class="btn" id="btn-invite">Create invite link</button>
+            </div>
+            <span class="small muted" id="online-msg" role="status"></span>
+          </div>
+          <div class="col" id="online-live" style="gap:8px" hidden>
+            <p class="small" id="online-state" role="status"></p>
+            <div class="row"><input type="text" id="invite-link" readonly aria-label="Invite link" style="flex:1;min-width:0"><button class="btn" id="btn-copy-link">Copy link</button></div>
+            <div class="row"><button class="btn" id="btn-leave">Leave game</button><span class="small muted" id="link-msg" role="status"></span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Moves <span id="play-eval" class="muted" style="float:right;font-family:var(--mono);letter-spacing:0"></span></h3>
+          <div class="moves" id="play-moves"></div>
+          <div class="row">
+            <button class="btn" id="play-first" aria-label="Start of game">|◀</button>
+            <button class="btn" id="play-prev" aria-label="Previous move">◀ Back</button>
+            <button class="btn" id="play-next" aria-label="Next move">Next ▶</button>
+            <button class="btn" id="play-last" aria-label="Latest move">▶|</button>
+          </div>
+          <div class="summary" id="play-summary" hidden></div>
+        </div>
+        <div class="panel">
+          <h3>Save and load</h3>
+          <div class="row">
+            <button class="btn" id="btn-copy-pgn">Copy PGN</button>
+            <button class="btn" id="btn-save-pgn">Download PGN</button>
+            <button class="btn" id="btn-copy-fen">Copy FEN</button>
+          </div>
+          <textarea id="io-text" rows="4" spellcheck="false" aria-label="PGN or FEN" placeholder="Paste a PGN game or a FEN position here, then press Load."></textarea>
+          <div class="row"><button class="btn" id="btn-load">Load</button><span class="small muted" id="io-msg" role="status"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEARN -->
+  <section class="view" id="view-learn">
+    <div class="stage three">
+      <div class="list" id="learn-list"></div>
+      <div class="col"><div class="boardwrap"><div id="learn-board"></div></div>
+        <div class="meter" title="Lessons completed"><div id="learn-meter"></div></div>
+        <div class="small muted" id="learn-count"></div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <h2 id="learn-title"></h2>
+          <div class="prose" id="learn-body"></div>
+          <div class="verdict" id="learn-task"></div>
+          <div class="row"><button class="btn" id="learn-reset">Reset position</button><button class="btn pri" id="learn-next">Next lesson</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPENINGS -->
+  <section class="view" id="view-openings">
+    <div class="stage three">
+      <div class="list" id="open-list"></div>
+      <div class="col"><div class="boardwrap"><div id="open-board"></div></div>
+        <div class="row">
+          <button class="btn" id="open-first" aria-label="First move">|◀</button>
+          <button class="btn" id="open-prev" aria-label="Previous move">◀ Back</button>
+          <button class="btn pri" id="open-next" aria-label="Next move">Next ▶</button>
+          <button class="btn" id="open-last" aria-label="Last move">▶|</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <h2 id="open-title"></h2>
+          <div class="moves" id="open-moves"></div>
+          <div class="verdict" id="open-note"></div>
+          <div class="prose" id="open-body"></div>
+          <div class="row"><button class="btn" id="open-play">Play this position against the computer</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PUZZLES -->
+  <section class="view" id="view-puzzles">
+    <div class="stage">
+      <div class="col"><div class="boardwrap"><div id="pz-board"></div></div></div>
+      <div class="col">
+        <div class="panel">
+          <h2 id="pz-title"></h2>
+          <p id="pz-prompt" class="muted"></p>
+          <div class="verdict" id="pz-feedback"></div>
+          <div class="row"><button class="btn" id="pz-hint">Hint</button><button class="btn" id="pz-retry">Retry</button><button class="btn pri" id="pz-next">Next puzzle</button></div>
+        </div>
+        <div class="panel">
+          <h3>All puzzles <span id="pz-count" style="float:right;letter-spacing:0"></span></h3>
+          <div class="pgrid" id="pz-grid"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- The app is Rust compiled to WebAssembly: see web/src/lib.rs. -->
+<script type="module">
+import init from './pkg/app.js';
+init();
+// Keeps a copy of the site so that it opens without a connection (see sw.js).
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+# Publishes the site to GitHub Pages on every push to main.
+#
+# Pages serves plain files, so everything works there except "Play a friend
+# online", which needs the server (see the Dockerfile).
+#
+# One-time setup: in the repository, Settings > Pages > Source: "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the WebAssembly target and wasm-bindgen
+        # Keep this version the same as the wasm-bindgen crate in Cargo.lock.
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - name: Test
+        run: |
+          cargo test -p sixtyfour-engine --release
+          cargo test -p sixtyfour-server --release
+      - name: Build
+        run: sh build.sh
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

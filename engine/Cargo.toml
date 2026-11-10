@@ -1,0 +1,8 @@
+[package]
+name = "sixtyfour-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Chess rules, SAN, FEN and search for Sixty-Four Chess. No dependencies."
+
+[lib]
+name = "engine"

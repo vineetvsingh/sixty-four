@@ -1,0 +1,58 @@
+[package]
+name = "sixtyfour-web"
+version = "0.1.0"
+edition = "2021"
+description = "Sixty-Four Chess front end, compiled to WebAssembly."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+engine = { path = "../engine", package = "sixtyfour-engine" }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "AudioBuffer",
+  "AudioBufferSourceNode",
+  "AudioContext",
+  "AudioDestinationNode",
+  "AudioNode",
+  "AudioParam",
+  "AudioScheduledSourceNode",
+  "BaseAudioContext",
+  "DomRect",
+  "GainNode",
+  "CssStyleDeclaration",
+  "Document",
+  "DomTokenList",
+  "Element",
+  "Event",
+  "EventTarget",
+  "FocusEvent",
+  "History",
+  "HtmlElement",
+  "HtmlInputElement",
+  "HtmlSelectElement",
+  "HtmlTextAreaElement",
+  "KeyboardEvent",
+  "Location",
+  "MessageEvent",
+  "MouseEvent",
+  "Navigator",
+  "Node",
+  "NodeList",
+  "OfflineAudioContext",
+  "PointerEvent",
+  "RequestInit",
+  "Response",
+  "StereoPannerNode",
+  "Storage",
+  "Window",
+  "Worker",
+  "WorkerOptions",
+  "WorkerType",
+]
