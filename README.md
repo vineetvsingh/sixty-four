@@ -69,8 +69,6 @@ the server restarts.
 | `dist/` | Build output. |
 | `Dockerfile`, `.github/workflows/pages.yml` | The two ways to put it on the internet, below. |
 
-`Sixty-Four Chess.html` is the original single-file JavaScript version the port was made from.
-
 ## Build and run
 
 Requirements: Rust with the `wasm32-unknown-unknown` target, and `wasm-bindgen-cli`
